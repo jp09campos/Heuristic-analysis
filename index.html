@@ -272,6 +272,95 @@
     }
     .chip-remove:hover { background: #dbeafe; }
 
+    /* ── Multi-file list ─────────────────────────────────── */
+    .file-list-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-top: 14px;
+      margin-bottom: 8px;
+    }
+    .file-count-badge {
+      background: var(--primary-light);
+      color: var(--primary);
+      border: 1px solid #bfdbfe;
+      padding: 3px 12px;
+      border-radius: 999px;
+      font-size: 0.8rem;
+      font-weight: 600;
+    }
+    .clear-all-btn {
+      background: none;
+      border: none;
+      cursor: pointer;
+      color: var(--danger);
+      font-size: 0.8rem;
+      font-weight: 600;
+      padding: 4px 10px;
+      border-radius: 6px;
+      transition: background .15s;
+    }
+    .clear-all-btn:hover { background: var(--danger-bg); }
+    .file-list-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+      gap: 8px;
+      max-height: 280px;
+      overflow-y: auto;
+      padding: 2px;
+    }
+    .file-thumb {
+      position: relative;
+      background: #f8fafc;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 10px 8px 8px;
+      text-align: center;
+      font-size: 0.78rem;
+      transition: border-color .15s;
+    }
+    .file-thumb:hover { border-color: var(--primary); }
+    .file-thumb .thumb-icon { font-size: 1.8rem; display: block; margin-bottom: 5px; }
+    .file-thumb .thumb-name {
+      font-weight: 500;
+      color: var(--text);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      display: block;
+    }
+    .file-thumb .thumb-size { color: var(--text-muted); display: block; margin-top: 2px; }
+    .file-thumb .thumb-remove {
+      position: absolute;
+      top: 4px; right: 4px;
+      background: #fff;
+      border: 1px solid var(--border);
+      border-radius: 50%;
+      width: 18px; height: 18px;
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer;
+      font-size: 0.6rem;
+      color: var(--text-muted);
+      transition: all .15s;
+      padding: 0;
+    }
+    .file-thumb .thumb-remove:hover {
+      background: var(--danger-bg);
+      border-color: var(--danger);
+      color: var(--danger);
+    }
+    .file-thumb .thumb-num {
+      position: absolute;
+      top: 4px; left: 4px;
+      background: var(--primary);
+      color: #fff;
+      border-radius: 4px;
+      font-size: 0.62rem;
+      font-weight: 700;
+      padding: 1px 5px;
+      line-height: 1.4;
+    }
+
     /* ── URL INPUT ── */
     .url-input-row input {
       width: 100%;
@@ -568,7 +657,7 @@
   <h1>Nielsen <span class="accent">Heuristic</span> Analyzer</h1>
   <p>Evaluate any interface against Jakob Nielsen's 10 Usability Heuristics. Get scored feedback, identified issues, and actionable design recommendations.</p>
   <div class="header-chips">
-    <span class="header-chip">📁 PNG / JPG / PDF</span>
+    <span class="header-chip">📁 Multi-screen Upload</span>
     <span class="header-chip">🔗 URL Input</span>
     <span class="header-chip">🤖 Claude Vision</span>
     <span class="header-chip">📊 Scores 1–10</span>
@@ -611,7 +700,7 @@
       <!-- Tabs -->
       <div class="tabs">
         <button class="tab-btn active" id="tabUpload" onclick="switchTab('upload')">
-          📁 Upload File
+          📁 Upload Screens
         </button>
         <button class="tab-btn" id="tabUrl" onclick="switchTab('url')">
           🔗 Enter URL
@@ -623,17 +712,16 @@
         <div class="drop-zone" id="dropZone" onclick="document.getElementById('fileInput').click()">
           <div class="drop-icon">📤</div>
           <p class="drop-main"><span>Click to upload</span> or drag &amp; drop</p>
-          <p class="drop-sub">PNG, JPG, JPEG or PDF — max 20 MB</p>
+          <p class="drop-sub">PNG, JPG, JPEG or PDF · Multiple screens · Max 20 MB each · Up to 20 files</p>
         </div>
-        <input type="file" id="fileInput" accept=".png,.jpg,.jpeg,.pdf" />
+        <input type="file" id="fileInput" accept=".png,.jpg,.jpeg,.pdf" multiple />
 
-        <div class="file-chip" id="fileChip">
-          <div class="file-chip-icon" id="chipIcon">📄</div>
-          <div class="file-chip-info">
-            <div class="file-chip-name" id="chipName">—</div>
-            <div class="file-chip-size" id="chipSize">—</div>
+        <div id="fileListContainer" style="display:none">
+          <div class="file-list-header">
+            <span class="file-count-badge" id="fileCountBadge">0 screens selected</span>
+            <button class="clear-all-btn" onclick="clearAllFiles()">✕ Clear all</button>
           </div>
-          <button class="chip-remove" onclick="clearFile()" title="Remove file">✕</button>
+          <div class="file-list-grid" id="fileListGrid"></div>
         </div>
       </div>
 
@@ -742,8 +830,9 @@
     'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 
   /* ── State ────────────────────────────────────────────── */
-  let currentFile  = null;
+  let currentFiles = [];
   let activeTab    = 'upload';
+  const MAX_FILES  = 20;
 
   /* ── Nielsen Heuristics (canonical 10) ───────────────── */
   const HEURISTICS = [
@@ -854,42 +943,79 @@ If a recommendation is not needed (score ≥ 9), still include at least one note
 
   /* ── File handling ────────────────────────────────────── */
   const dropZone = document.getElementById('dropZone');
+  const ALLOWED  = ['image/png','image/jpeg','image/jpg','application/pdf'];
 
   dropZone.addEventListener('dragover',  e => { e.preventDefault(); dropZone.classList.add('over'); });
   dropZone.addEventListener('dragleave', ()  => dropZone.classList.remove('over'));
   dropZone.addEventListener('drop', e => {
     e.preventDefault();
     dropZone.classList.remove('over');
-    const f = e.dataTransfer.files[0];
-    if (f) handleFile(f);
+    if (e.dataTransfer.files.length) handleFiles(e.dataTransfer.files);
   });
 
   document.getElementById('fileInput').addEventListener('change', e => {
-    if (e.target.files[0]) handleFile(e.target.files[0]);
+    if (e.target.files.length) handleFiles(e.target.files);
+    // reset so same files can be re-added after clearing
+    e.target.value = '';
   });
 
-  function handleFile(file) {
-    const ok = ['image/png','image/jpeg','image/jpg','application/pdf'];
-    if (!ok.includes(file.type)) {
-      showError('Unsupported file type. Please upload a PNG, JPG, or PDF.');
-      return;
+  function handleFiles(fileList) {
+    const incoming = Array.from(fileList);
+    const invalid = incoming.find(f => !ALLOWED.includes(f.type));
+    if (invalid) { showError(`"${invalid.name}" is not supported. Use PNG, JPG, or PDF.`); return; }
+    const tooBig = incoming.find(f => f.size > 20 * 1024 * 1024);
+    if (tooBig) { showError(`"${tooBig.name}" exceeds 20 MB.`); return; }
+
+    // Merge, deduplicate by filename
+    const existing = new Set(currentFiles.map(f => f.name));
+    const fresh = incoming.filter(f => !existing.has(f.name));
+    currentFiles = [...currentFiles, ...fresh];
+
+    if (currentFiles.length > MAX_FILES) {
+      currentFiles = currentFiles.slice(0, MAX_FILES);
+      showError(`Maximum ${MAX_FILES} screens. Extra files were trimmed.`);
+    } else {
+      hideError();
     }
-    if (file.size > 20 * 1024 * 1024) {
-      showError('File is too large. Maximum size is 20 MB.');
-      return;
-    }
-    currentFile = file;
-    document.getElementById('chipIcon').textContent = file.type === 'application/pdf' ? '📄' : '🖼️';
-    document.getElementById('chipName').textContent  = file.name;
-    document.getElementById('chipSize').textContent  = formatBytes(file.size);
-    document.getElementById('fileChip').classList.add('show');
-    hideError();
+    renderFileList();
   }
 
-  function clearFile() {
-    currentFile = null;
-    document.getElementById('fileInput').value = '';
-    document.getElementById('fileChip').classList.remove('show');
+  function renderFileList() {
+    const container = document.getElementById('fileListContainer');
+    const grid      = document.getElementById('fileListGrid');
+    const badge     = document.getElementById('fileCountBadge');
+
+    if (currentFiles.length === 0) {
+      container.style.display = 'none';
+      return;
+    }
+    container.style.display = 'block';
+    badge.textContent = `${currentFiles.length} screen${currentFiles.length !== 1 ? 's' : ''} selected`;
+    grid.innerHTML = '';
+    currentFiles.forEach((file, idx) => {
+      const isPdf = file.type === 'application/pdf';
+      const div   = document.createElement('div');
+      div.className = 'file-thumb';
+      div.innerHTML = `
+        <span class="thumb-num">${idx + 1}</span>
+        <span class="thumb-icon">${isPdf ? '📄' : '🖼️'}</span>
+        <span class="thumb-name" title="${escHtml(file.name)}">${escHtml(file.name)}</span>
+        <span class="thumb-size">${formatBytes(file.size)}</span>
+        <button class="thumb-remove" onclick="removeFile(${idx})" title="Remove">✕</button>`;
+      grid.appendChild(div);
+    });
+  }
+
+  function removeFile(idx) {
+    currentFiles.splice(idx, 1);
+    renderFileList();
+    if (currentFiles.length === 0) hideError();
+  }
+
+  function clearAllFiles() {
+    currentFiles = [];
+    renderFileList();
+    hideError();
   }
 
   /* ── File → base64 ────────────────────────────────────── */
@@ -925,24 +1051,28 @@ If a recommendation is not needed (score ≥ 9), still include at least one note
     };
   }
 
-  /* ── Claude call — image (vision) ────────────────────── */
-  async function callVisionAPI(apiKey, base64, mime) {
+  /* ── Claude call — images (vision, supports multi-screen) */
+  async function callVisionAPI(apiKey, images) {
+    // images = [{ base64, mime, name }, ...]
+    const n = images.length;
+    const intro = n > 1
+      ? `You are analyzing ${n} screens from the SAME application. Evaluate the interface holistically — note patterns, cross-screen consistency issues, and navigation flow problems in addition to per-screen observations.\n\n`
+      : '';
+
+    const content = [];
+    images.forEach((img, i) => {
+      if (n > 1) content.push({ type: 'text', text: `--- Screen ${i + 1}: ${img.name} ---` });
+      content.push({ type: 'image', source: { type: 'base64', media_type: img.mime, data: img.base64 } });
+    });
+    content.push({ type: 'text', text: intro + PROMPT });
+
     const res = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: anthropicHeaders(apiKey),
       body: JSON.stringify({
         model: 'claude-opus-4-5',
         max_tokens: 4096,
-        messages: [{
-          role: 'user',
-          content: [
-            {
-              type: 'image',
-              source: { type: 'base64', media_type: mime, data: base64 }
-            },
-            { type: 'text', text: PROMPT }
-          ]
-        }]
+        messages: [{ role: 'user', content }]
       })
     });
 
@@ -991,8 +1121,8 @@ If a recommendation is not needed (score ≥ 9), still include at least one note
     if (!apiKey) { showError('Please enter your Anthropic API key.'); return; }
     if (!apiKey.startsWith('sk-ant-')) { showError('Anthropic API keys start with "sk-ant-". Please check your key.'); return; }
 
-    if (activeTab === 'upload' && !currentFile) {
-      showError('Please upload a file to analyze.'); return;
+    if (activeTab === 'upload' && currentFiles.length === 0) {
+      showError('Please upload at least one screen to analyze.'); return;
     }
     if (activeTab === 'url') {
       const u = document.getElementById('urlInput').value.trim();
@@ -1016,21 +1146,28 @@ If a recommendation is not needed (score ≥ 9), still include at least one note
         setStep(3); document.getElementById('loadingMsg').textContent = 'Evaluating heuristics…';
         result = await callTextAPI(apiKey, url);
       } else {
-        setStep(1); document.getElementById('loadingMsg').textContent = 'Preparing file…';
+        const total = currentFiles.length;
+        setStep(1); document.getElementById('loadingMsg').textContent = `Preparing ${total} screen${total !== 1 ? 's' : ''}…`;
         await tick();
-        let base64, mime;
-        if (currentFile.type === 'application/pdf') {
-          document.getElementById('loadingMsg').textContent = 'Rendering PDF page…';
-          base64 = await pdfFirstPageToBase64(currentFile);
-          mime   = 'image/png';
-        } else {
-          base64 = await fileToBase64(currentFile);
-          mime   = currentFile.type;
+
+        const images = [];
+        for (let i = 0; i < currentFiles.length; i++) {
+          const file = currentFiles[i];
+          document.getElementById('loadingMsg').textContent = `Processing ${i + 1}/${total}: ${file.name}…`;
+          await tick();
+          if (file.type === 'application/pdf') {
+            const b64 = await pdfFirstPageToBase64(file);
+            images.push({ base64: b64, mime: 'image/png', name: file.name });
+          } else {
+            const b64 = await fileToBase64(file);
+            images.push({ base64: b64, mime: file.type, name: file.name });
+          }
         }
-        setStep(2); document.getElementById('loadingMsg').textContent = 'Contacting Claude Vision…';
+
+        setStep(2); document.getElementById('loadingMsg').textContent = `Sending ${total} screen${total !== 1 ? 's' : ''} to Claude…`;
         await tick();
-        setStep(3); document.getElementById('loadingMsg').textContent = 'Evaluating heuristics…';
-        result = await callVisionAPI(apiKey, base64, mime);
+        setStep(3); document.getElementById('loadingMsg').textContent = 'Evaluating all heuristics…';
+        result = await callVisionAPI(apiKey, images);
       }
 
       setStep(4); document.getElementById('loadingMsg').textContent = 'Building report…';
@@ -1121,7 +1258,7 @@ If a recommendation is not needed (score ≥ 9), still include at least one note
 
   /* ── Reset ────────────────────────────────────────────── */
   function resetTool() {
-    clearFile();
+    clearAllFiles();
     document.getElementById('urlInput').value = '';
     document.getElementById('results').classList.remove('show');
     document.getElementById('inputCard').style.display = 'block';
