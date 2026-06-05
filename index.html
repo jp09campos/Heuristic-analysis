@@ -570,7 +570,7 @@
   <div class="header-chips">
     <span class="header-chip">📁 PNG / JPG / PDF</span>
     <span class="header-chip">🔗 URL Input</span>
-    <span class="header-chip">🤖 GPT-4o Vision</span>
+    <span class="header-chip">🤖 Claude Vision</span>
     <span class="header-chip">📊 Scores 1–10</span>
   </div>
 </header>
@@ -583,17 +583,17 @@
     <div class="card-header">
       <div class="step-label">
         <div class="step-num">1</div>
-        <div class="step-title">OpenAI API Key</div>
+        <div class="step-title">Anthropic API Key</div>
       </div>
     </div>
     <div class="card-body">
       <div class="input-wrap">
-        <input type="password" id="apiKey" placeholder="sk-…" autocomplete="off" spellcheck="false" />
+        <input type="password" id="apiKey" placeholder="sk-ant-api…" autocomplete="off" spellcheck="false" />
         <button class="eye-btn" id="eyeBtn" onclick="toggleKey()" title="Show / hide key">👁</button>
       </div>
       <p class="hint-text">
-        Requires a GPT-4o-capable API key. Your key stays in the browser and is never stored or sent anywhere other than OpenAI.
-        <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener">Get a key →</a>
+        Requires an Anthropic API key (Claude). Your key stays in the browser and is never stored or sent anywhere other than Anthropic.
+        <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener">Get a key →</a> · Free credits on signup, no credit card required.
       </p>
     </div>
   </div>
@@ -665,7 +665,7 @@
         <p id="loadingMsg">Sending to AI…</p>
         <div class="loading-steps">
           <span class="lstep" id="ls1">① Prepare input</span>
-          <span class="lstep" id="ls2">② Contact GPT-4o</span>
+          <span class="lstep" id="ls2">② Contact Claude</span>
           <span class="lstep" id="ls3">③ Evaluate heuristics</span>
           <span class="lstep" id="ls4">④ Build report</span>
         </div>
@@ -915,62 +915,67 @@ If a recommendation is not needed (score ≥ 9), still include at least one note
     return canvas.toDataURL('image/png').split(',')[1];
   }
 
-  /* ── OpenAI call — image ──────────────────────────────── */
+  /* ── Shared Anthropic headers ────────────────────────── */
+  function anthropicHeaders(apiKey) {
+    return {
+      'Content-Type': 'application/json',
+      'x-api-key': apiKey,
+      'anthropic-version': '2023-06-01',
+      'anthropic-dangerous-direct-browser-calls': 'true'
+    };
+  }
+
+  /* ── Claude call — image (vision) ────────────────────── */
   async function callVisionAPI(apiKey, base64, mime) {
-    const res = await fetch('https://api.openai.com/v1/chat/completions', {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${apiKey}`
-      },
+      headers: anthropicHeaders(apiKey),
       body: JSON.stringify({
-        model: 'gpt-4o',
+        model: 'claude-opus-4-5',
+        max_tokens: 4096,
         messages: [{
           role: 'user',
           content: [
-            { type: 'text', text: PROMPT },
-            { type: 'image_url', image_url: { url: `data:${mime};base64,${base64}`, detail: 'high' } }
+            {
+              type: 'image',
+              source: { type: 'base64', media_type: mime, data: base64 }
+            },
+            { type: 'text', text: PROMPT }
           ]
-        }],
-        max_tokens: 4096,
-        temperature: 0.2
+        }]
       })
     });
 
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
-      throw new Error(err?.error?.message || `OpenAI API error ${res.status}`);
+      throw new Error(err?.error?.message || `Anthropic API error ${res.status}`);
     }
 
     const data = await res.json();
-    return parseAIResponse(data.choices[0].message.content);
+    return parseAIResponse(data.content[0].text);
   }
 
-  /* ── OpenAI call — URL / text ─────────────────────────── */
+  /* ── Claude call — URL / text ─────────────────────────── */
   async function callTextAPI(apiKey, url) {
     const textPrompt = `${PROMPT}\n\nThe interface to evaluate is: ${url}\n\nAnalyze using your knowledge of this website. If unfamiliar, provide a framework-based analysis, noting that a screenshot upload would yield more precise results.`;
 
-    const res = await fetch('https://api.openai.com/v1/chat/completions', {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${apiKey}`
-      },
+      headers: anthropicHeaders(apiKey),
       body: JSON.stringify({
-        model: 'gpt-4o',
-        messages: [{ role: 'user', content: textPrompt }],
+        model: 'claude-opus-4-5',
         max_tokens: 4096,
-        temperature: 0.2
+        messages: [{ role: 'user', content: textPrompt }]
       })
     });
 
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
-      throw new Error(err?.error?.message || `OpenAI API error ${res.status}`);
+      throw new Error(err?.error?.message || `Anthropic API error ${res.status}`);
     }
 
     const data = await res.json();
-    return parseAIResponse(data.choices[0].message.content);
+    return parseAIResponse(data.content[0].text);
   }
 
   /* ── Parse AI response (strip markdown fences if present) */
@@ -983,8 +988,8 @@ If a recommendation is not needed (score ≥ 9), still include at least one note
   async function startAnalysis() {
     const apiKey = document.getElementById('apiKey').value.trim();
 
-    if (!apiKey) { showError('Please enter your OpenAI API key.'); return; }
-    if (!apiKey.startsWith('sk-')) { showError('API key should start with "sk-". Please check your key.'); return; }
+    if (!apiKey) { showError('Please enter your Anthropic API key.'); return; }
+    if (!apiKey.startsWith('sk-ant-')) { showError('Anthropic API keys start with "sk-ant-". Please check your key.'); return; }
 
     if (activeTab === 'upload' && !currentFile) {
       showError('Please upload a file to analyze.'); return;
@@ -1006,7 +1011,7 @@ If a recommendation is not needed (score ≥ 9), still include at least one note
       if (activeTab === 'url') {
         setStep(1); await tick();
         const url = document.getElementById('urlInput').value.trim();
-        setStep(2); document.getElementById('loadingMsg').textContent = 'Contacting GPT-4o…';
+        setStep(2); document.getElementById('loadingMsg').textContent = 'Contacting Claude…';
         await tick();
         setStep(3); document.getElementById('loadingMsg').textContent = 'Evaluating heuristics…';
         result = await callTextAPI(apiKey, url);
@@ -1022,7 +1027,7 @@ If a recommendation is not needed (score ≥ 9), still include at least one note
           base64 = await fileToBase64(currentFile);
           mime   = currentFile.type;
         }
-        setStep(2); document.getElementById('loadingMsg').textContent = 'Contacting GPT-4o Vision…';
+        setStep(2); document.getElementById('loadingMsg').textContent = 'Contacting Claude Vision…';
         await tick();
         setStep(3); document.getElementById('loadingMsg').textContent = 'Evaluating heuristics…';
         result = await callVisionAPI(apiKey, base64, mime);
