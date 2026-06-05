@@ -1,0 +1,1130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Nielsen Heuristic Analyzer</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #f0f4f8;
+      --card: #ffffff;
+      --primary: #2563eb;
+      --primary-dark: #1d4ed8;
+      --primary-light: #eff6ff;
+      --text: #1e293b;
+      --text-muted: #64748b;
+      --border: #e2e8f0;
+      --success: #16a34a;
+      --success-bg: #dcfce7;
+      --warning: #d97706;
+      --warning-bg: #fef3c7;
+      --danger: #dc2626;
+      --danger-bg: #fee2e2;
+      --radius: 14px;
+      --shadow: 0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.06);
+      --shadow-md: 0 4px 16px rgba(0,0,0,0.10);
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      line-height: 1.5;
+    }
+
+    /* ── HEADER ── */
+    header {
+      background: linear-gradient(135deg, #0f172a 0%, #1e293b 60%, #1e3a5f 100%);
+      color: #fff;
+      padding: 56px 24px 48px;
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+    }
+    header::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(circle at 70% 50%, rgba(37,99,235,0.18) 0%, transparent 60%);
+      pointer-events: none;
+    }
+    header .badge {
+      display: inline-block;
+      background: rgba(96,165,250,0.15);
+      border: 1px solid rgba(96,165,250,0.3);
+      color: #93c5fd;
+      padding: 4px 14px;
+      border-radius: 999px;
+      font-size: 0.78rem;
+      font-weight: 600;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      margin-bottom: 16px;
+    }
+    header h1 {
+      font-size: clamp(1.9rem, 5vw, 3rem);
+      font-weight: 800;
+      letter-spacing: -0.5px;
+      margin-bottom: 14px;
+    }
+    header h1 .accent { color: #60a5fa; }
+    header p {
+      color: #94a3b8;
+      font-size: 1.05rem;
+      max-width: 580px;
+      margin: 0 auto 24px;
+    }
+    .header-chips {
+      display: flex;
+      gap: 10px;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+    .header-chip {
+      background: rgba(255,255,255,0.07);
+      border: 1px solid rgba(255,255,255,0.12);
+      color: #cbd5e1;
+      padding: 5px 14px;
+      border-radius: 999px;
+      font-size: 0.82rem;
+    }
+
+    /* ── LAYOUT ── */
+    main {
+      max-width: 960px;
+      margin: 0 auto;
+      padding: 36px 20px 48px;
+    }
+
+    .card {
+      background: var(--card);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      margin-bottom: 24px;
+    }
+
+    .card-body { padding: 24px; }
+    .card-header {
+      padding: 18px 24px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .step-label {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .step-num {
+      width: 26px;
+      height: 26px;
+      border-radius: 50%;
+      background: var(--primary);
+      color: #fff;
+      font-size: 0.78rem;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+    .step-title {
+      font-weight: 600;
+      font-size: 0.92rem;
+      color: var(--text);
+    }
+
+    /* ── API KEY ── */
+    .input-wrap {
+      position: relative;
+      display: flex;
+      align-items: center;
+    }
+    .input-wrap input {
+      width: 100%;
+      padding: 12px 44px 12px 14px;
+      border: 2px solid var(--border);
+      border-radius: 8px;
+      font-size: 0.95rem;
+      font-family: 'Courier New', monospace;
+      color: var(--text);
+      background: #fff;
+      transition: border-color .2s;
+    }
+    .input-wrap input:focus {
+      outline: none;
+      border-color: var(--primary);
+    }
+    .input-wrap .eye-btn {
+      position: absolute;
+      right: 12px;
+      background: none;
+      border: none;
+      cursor: pointer;
+      font-size: 1.1rem;
+      color: var(--text-muted);
+      padding: 4px;
+      line-height: 1;
+    }
+    .hint-text {
+      margin-top: 8px;
+      font-size: 0.82rem;
+      color: var(--text-muted);
+    }
+    .hint-text a { color: var(--primary); text-decoration: none; }
+    .hint-text a:hover { text-decoration: underline; }
+
+    /* ── TABS ── */
+    .tabs {
+      display: flex;
+      gap: 4px;
+      background: var(--bg);
+      padding: 4px;
+      border-radius: 10px;
+      margin-bottom: 22px;
+    }
+    .tab-btn {
+      flex: 1;
+      padding: 9px 12px;
+      border: none;
+      background: transparent;
+      border-radius: 7px;
+      cursor: pointer;
+      font-size: 0.88rem;
+      font-weight: 500;
+      color: var(--text-muted);
+      transition: all .18s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+    }
+    .tab-btn.active {
+      background: #fff;
+      color: var(--text);
+      box-shadow: var(--shadow);
+      font-weight: 600;
+    }
+
+    /* ── DROP ZONE ── */
+    .drop-zone {
+      border: 2px dashed var(--border);
+      border-radius: 10px;
+      padding: 44px 20px;
+      text-align: center;
+      cursor: pointer;
+      transition: all .2s;
+      background: #fafbfc;
+    }
+    .drop-zone:hover, .drop-zone.over {
+      border-color: var(--primary);
+      background: var(--primary-light);
+    }
+    .drop-icon { font-size: 2.8rem; margin-bottom: 12px; }
+    .drop-main {
+      font-size: 0.95rem;
+      font-weight: 500;
+      color: var(--text);
+      margin-bottom: 4px;
+    }
+    .drop-main span { color: var(--primary); }
+    .drop-sub { font-size: 0.82rem; color: var(--text-muted); }
+    #fileInput { display: none; }
+
+    /* ── FILE PREVIEW ── */
+    .file-chip {
+      display: none;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 14px;
+      background: var(--primary-light);
+      border: 1px solid #bfdbfe;
+      border-radius: 8px;
+      margin-top: 14px;
+    }
+    .file-chip.show { display: flex; }
+    .file-chip-icon { font-size: 1.8rem; flex-shrink: 0; }
+    .file-chip-info { flex: 1; min-width: 0; }
+    .file-chip-name {
+      font-weight: 600;
+      font-size: 0.9rem;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      color: var(--text);
+    }
+    .file-chip-size { font-size: 0.78rem; color: var(--text-muted); }
+    .chip-remove {
+      background: none;
+      border: none;
+      cursor: pointer;
+      color: var(--text-muted);
+      font-size: 1.1rem;
+      padding: 2px 6px;
+      border-radius: 4px;
+      flex-shrink: 0;
+      transition: background .15s;
+    }
+    .chip-remove:hover { background: #dbeafe; }
+
+    /* ── URL INPUT ── */
+    .url-input-row input {
+      width: 100%;
+      padding: 12px 14px;
+      border: 2px solid var(--border);
+      border-radius: 8px;
+      font-size: 0.95rem;
+      transition: border-color .2s;
+    }
+    .url-input-row input:focus {
+      outline: none;
+      border-color: var(--primary);
+    }
+
+    /* ── ALERT ── */
+    .info-alert {
+      display: flex;
+      gap: 10px;
+      align-items: flex-start;
+      padding: 10px 14px;
+      border-radius: 8px;
+      font-size: 0.84rem;
+      margin-top: 12px;
+    }
+    .info-alert.info {
+      background: #f0f9ff;
+      border: 1px solid #bae6fd;
+      color: #0369a1;
+    }
+    .info-alert.error {
+      background: var(--danger-bg);
+      border: 1px solid #fca5a5;
+      color: var(--danger);
+    }
+
+    /* ── ANALYZE BTN ── */
+    .analyze-btn {
+      width: 100%;
+      padding: 15px;
+      background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+      color: #fff;
+      border: none;
+      border-radius: 10px;
+      font-size: 1rem;
+      font-weight: 700;
+      cursor: pointer;
+      margin-top: 22px;
+      transition: transform .18s, box-shadow .18s;
+      letter-spacing: 0.2px;
+    }
+    .analyze-btn:hover:not(:disabled) {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(37,99,235,0.35);
+    }
+    .analyze-btn:disabled { opacity: .55; cursor: not-allowed; transform: none; }
+
+    /* ── LOADING ── */
+    #loading {
+      display: none;
+      text-align: center;
+      padding: 60px 24px;
+    }
+    #loading.show { display: block; }
+    .spinner {
+      width: 52px;
+      height: 52px;
+      border: 4px solid #e2e8f0;
+      border-top-color: var(--primary);
+      border-radius: 50%;
+      animation: spin 0.75s linear infinite;
+      margin: 0 auto 20px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    #loading p { color: var(--text-muted); font-size: 0.95rem; }
+    #loading .loading-steps {
+      display: flex;
+      justify-content: center;
+      gap: 8px;
+      margin-top: 16px;
+      flex-wrap: wrap;
+    }
+    .lstep {
+      padding: 4px 12px;
+      border-radius: 999px;
+      font-size: 0.78rem;
+      font-weight: 500;
+      background: #f1f5f9;
+      color: var(--text-muted);
+      border: 1px solid var(--border);
+    }
+    .lstep.active {
+      background: var(--primary-light);
+      color: var(--primary);
+      border-color: #93c5fd;
+    }
+    .lstep.done {
+      background: var(--success-bg);
+      color: var(--success);
+      border-color: #86efac;
+    }
+
+    /* ── RESULTS ── */
+    #results { display: none; }
+    #results.show { display: block; }
+
+    /* Overall card */
+    .overall-grid {
+      display: grid;
+      grid-template-columns: auto 1fr;
+      gap: 28px;
+      align-items: center;
+      padding: 24px;
+    }
+    @media (max-width: 520px) {
+      .overall-grid { grid-template-columns: 1fr; text-align: center; }
+    }
+    .score-ring {
+      width: 108px;
+      height: 108px;
+      border-radius: 50%;
+      border: 7px solid;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+    .score-ring .snum { font-size: 2.2rem; font-weight: 800; line-height: 1; }
+    .score-ring .sdiv { font-size: 0.68rem; font-weight: 600; opacity: .7; letter-spacing: .5px; }
+    .ring-green { border-color: var(--success); color: var(--success); }
+    .ring-yellow { border-color: var(--warning); color: var(--warning); }
+    .ring-red { border-color: var(--danger); color: var(--danger); }
+    .overall-title { font-size: 1.25rem; font-weight: 700; margin-bottom: 6px; }
+    .overall-summary { color: var(--text-muted); font-size: 0.92rem; line-height: 1.65; }
+
+    /* Heuristics table */
+    .tbl-wrap { overflow-x: auto; }
+    table.htable {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.875rem;
+    }
+    .htable thead th {
+      background: #f8fafc;
+      padding: 11px 16px;
+      text-align: left;
+      font-weight: 700;
+      color: var(--text-muted);
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+      border-bottom: 2px solid var(--border);
+      white-space: nowrap;
+    }
+    .htable tbody tr { transition: background .12s; }
+    .htable tbody tr:hover td { background: #f8fafc; }
+    .htable tbody td {
+      padding: 16px;
+      border-bottom: 1px solid var(--border);
+      vertical-align: top;
+    }
+    .htable tbody tr:last-child td { border-bottom: none; }
+
+    /* Score cell */
+    .score-cell { text-align: center; }
+    .score-pill {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 44px;
+      height: 44px;
+      border-radius: 10px;
+      font-weight: 800;
+      font-size: 1.1rem;
+    }
+    .pill-green { background: var(--success-bg); color: var(--success); }
+    .pill-yellow { background: var(--warning-bg); color: var(--warning); }
+    .pill-red { background: var(--danger-bg); color: var(--danger); }
+    .score-bar {
+      width: 44px;
+      height: 5px;
+      background: var(--border);
+      border-radius: 3px;
+      margin: 6px auto 0;
+      overflow: hidden;
+    }
+    .score-bar-fill { height: 100%; border-radius: 3px; }
+    .fill-green { background: var(--success); }
+    .fill-yellow { background: var(--warning); }
+    .fill-red { background: var(--danger); }
+
+    /* Heuristic name cell */
+    .h-num { font-size: 0.72rem; color: var(--text-muted); margin-bottom: 3px; font-weight: 500; }
+    .h-name { font-weight: 600; color: var(--text); line-height: 1.35; }
+
+    /* Issues cell */
+    .issues-txt { color: var(--text); line-height: 1.6; margin-bottom: 6px; }
+    .rationale-txt {
+      font-size: 0.82rem;
+      color: var(--text-muted);
+      font-style: italic;
+      line-height: 1.55;
+      border-left: 2px solid var(--border);
+      padding-left: 10px;
+    }
+
+    /* Recommendations cell */
+    .rec-list { list-style: none; }
+    .rec-list li {
+      display: flex;
+      gap: 8px;
+      align-items: flex-start;
+      padding: 3px 0;
+      line-height: 1.5;
+    }
+    .rec-list li .arrow {
+      color: var(--primary);
+      font-weight: 700;
+      flex-shrink: 0;
+      margin-top: 1px;
+    }
+
+    /* Action bar */
+    .action-bar {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    .btn-outline {
+      padding: 9px 18px;
+      background: #fff;
+      border: 2px solid var(--border);
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 0.875rem;
+      font-weight: 600;
+      color: var(--text);
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      transition: all .18s;
+    }
+    .btn-outline:hover { border-color: var(--primary); color: var(--primary); }
+    .btn-primary {
+      padding: 9px 18px;
+      background: var(--primary);
+      border: 2px solid var(--primary);
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 0.875rem;
+      font-weight: 600;
+      color: #fff;
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      transition: background .18s;
+    }
+    .btn-primary:hover { background: var(--primary-dark); }
+
+    /* Error display */
+    #errorMsg { display: none; }
+    #errorMsg.show { display: flex; }
+
+    /* ── FOOTER ── */
+    footer {
+      text-align: center;
+      padding: 28px 24px;
+      font-size: 0.82rem;
+      color: var(--text-muted);
+      border-top: 1px solid var(--border);
+      background: #fff;
+    }
+    footer a { color: var(--primary); text-decoration: none; }
+    footer a:hover { text-decoration: underline; }
+
+    /* ── PRINT STYLES ── */
+    @media print {
+      body { background: #fff; }
+      header { background: #1e293b !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      .card { box-shadow: none; border: 1px solid #e2e8f0; }
+      .action-bar, #inputCard, #loading, .analyze-btn { display: none !important; }
+      #results { display: block !important; }
+      .htable tbody tr:hover td { background: transparent !important; }
+      .score-pill, .score-ring, .score-bar-fill { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      footer { border-top: 1px solid #e2e8f0; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ══ HEADER ══════════════════════════════════════════════ -->
+<header>
+  <div class="badge">UX Evaluation Tool</div>
+  <h1>Nielsen <span class="accent">Heuristic</span> Analyzer</h1>
+  <p>Evaluate any interface against Jakob Nielsen's 10 Usability Heuristics. Get scored feedback, identified issues, and actionable design recommendations.</p>
+  <div class="header-chips">
+    <span class="header-chip">📁 PNG / JPG / PDF</span>
+    <span class="header-chip">🔗 URL Input</span>
+    <span class="header-chip">🤖 GPT-4o Vision</span>
+    <span class="header-chip">📊 Scores 1–10</span>
+  </div>
+</header>
+
+<!-- ══ MAIN ════════════════════════════════════════════════ -->
+<main>
+
+  <!-- STEP 1 — API KEY -->
+  <div class="card">
+    <div class="card-header">
+      <div class="step-label">
+        <div class="step-num">1</div>
+        <div class="step-title">OpenAI API Key</div>
+      </div>
+    </div>
+    <div class="card-body">
+      <div class="input-wrap">
+        <input type="password" id="apiKey" placeholder="sk-…" autocomplete="off" spellcheck="false" />
+        <button class="eye-btn" id="eyeBtn" onclick="toggleKey()" title="Show / hide key">👁</button>
+      </div>
+      <p class="hint-text">
+        Requires a GPT-4o-capable API key. Your key stays in the browser and is never stored or sent anywhere other than OpenAI.
+        <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener">Get a key →</a>
+      </p>
+    </div>
+  </div>
+
+  <!-- STEP 2 — INPUT -->
+  <div class="card" id="inputCard">
+    <div class="card-header">
+      <div class="step-label">
+        <div class="step-num">2</div>
+        <div class="step-title">Interface to Analyze</div>
+      </div>
+    </div>
+    <div class="card-body">
+
+      <!-- Tabs -->
+      <div class="tabs">
+        <button class="tab-btn active" id="tabUpload" onclick="switchTab('upload')">
+          📁 Upload File
+        </button>
+        <button class="tab-btn" id="tabUrl" onclick="switchTab('url')">
+          🔗 Enter URL
+        </button>
+      </div>
+
+      <!-- Upload panel -->
+      <div id="panelUpload">
+        <div class="drop-zone" id="dropZone" onclick="document.getElementById('fileInput').click()">
+          <div class="drop-icon">📤</div>
+          <p class="drop-main"><span>Click to upload</span> or drag &amp; drop</p>
+          <p class="drop-sub">PNG, JPG, JPEG or PDF — max 20 MB</p>
+        </div>
+        <input type="file" id="fileInput" accept=".png,.jpg,.jpeg,.pdf" />
+
+        <div class="file-chip" id="fileChip">
+          <div class="file-chip-icon" id="chipIcon">📄</div>
+          <div class="file-chip-info">
+            <div class="file-chip-name" id="chipName">—</div>
+            <div class="file-chip-size" id="chipSize">—</div>
+          </div>
+          <button class="chip-remove" onclick="clearFile()" title="Remove file">✕</button>
+        </div>
+      </div>
+
+      <!-- URL panel -->
+      <div id="panelUrl" style="display:none">
+        <div class="url-input-row">
+          <input type="url" id="urlInput" placeholder="https://example.com" />
+        </div>
+        <div class="info-alert info">
+          ⚠️ The AI will analyze based on its knowledge of the URL. For more precise visual analysis, upload a screenshot instead.
+        </div>
+      </div>
+
+      <!-- Error -->
+      <div class="info-alert error" id="errorMsg"></div>
+
+      <!-- Analyze -->
+      <button class="analyze-btn" id="analyzeBtn" onclick="startAnalysis()">
+        🔍 Analyze Interface
+      </button>
+    </div>
+  </div>
+
+  <!-- LOADING -->
+  <div id="loading">
+    <div class="card">
+      <div class="card-body">
+        <div class="spinner"></div>
+        <p id="loadingMsg">Sending to AI…</p>
+        <div class="loading-steps">
+          <span class="lstep" id="ls1">① Prepare input</span>
+          <span class="lstep" id="ls2">② Contact GPT-4o</span>
+          <span class="lstep" id="ls3">③ Evaluate heuristics</span>
+          <span class="lstep" id="ls4">④ Build report</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- RESULTS -->
+  <div id="results">
+
+    <!-- Overall score -->
+    <div class="card">
+      <div class="card-header">
+        <div class="step-label">
+          <div class="step-num">✓</div>
+          <div class="step-title">Overall Assessment</div>
+        </div>
+        <div class="action-bar">
+          <button class="btn-outline" onclick="exportReport()">⬇️ Export PDF</button>
+          <button class="btn-primary" onclick="resetTool()">+ New Analysis</button>
+        </div>
+      </div>
+      <div class="overall-grid">
+        <div class="score-ring" id="overallRing">
+          <span class="snum" id="overallNum">—</span>
+          <span class="sdiv">OUT OF 10</span>
+        </div>
+        <div>
+          <div class="overall-title" id="overallTitle">—</div>
+          <div class="overall-summary" id="overallSummary">—</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Heuristics table -->
+    <div class="card" style="overflow:hidden">
+      <div class="card-header">
+        <div class="step-label">
+          <div class="step-num">📊</div>
+          <div class="step-title">Heuristics Evaluation</div>
+        </div>
+      </div>
+      <div class="tbl-wrap">
+        <table class="htable" id="htable">
+          <thead>
+            <tr>
+              <th style="width:70px;text-align:center">Score</th>
+              <th style="width:210px">Heuristic</th>
+              <th>Issues Found &amp; Rationale</th>
+              <th style="width:280px">Recommendations</th>
+            </tr>
+          </thead>
+          <tbody id="htbody"></tbody>
+        </table>
+      </div>
+    </div>
+
+  </div><!-- /results -->
+
+</main>
+
+<!-- ══ FOOTER ══════════════════════════════════════════════ -->
+<footer>
+  Based on <a href="https://www.nngroup.com/articles/ten-usability-heuristics/" target="_blank" rel="noopener">Nielsen's 10 Usability Heuristics</a> by Jakob Nielsen (NN/g) ·
+  <a href="https://www.nngroup.com/articles/how-to-conduct-a-heuristic-evaluation/" target="_blank" rel="noopener">How to Conduct a Heuristic Evaluation</a>
+</footer>
+
+<!-- ══ SCRIPTS ════════════════════════════════════════════ -->
+<script>
+  'use strict';
+
+  /* ── PDF.js worker ────────────────────────────────────── */
+  pdfjsLib.GlobalWorkerOptions.workerSrc =
+    'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+  /* ── State ────────────────────────────────────────────── */
+  let currentFile  = null;
+  let activeTab    = 'upload';
+
+  /* ── Nielsen Heuristics (canonical 10) ───────────────── */
+  const HEURISTICS = [
+    { id:1,  name:'Visibility of System Status',
+      desc:'Keep users informed through appropriate, timely feedback.' },
+    { id:2,  name:'Match Between System and the Real World',
+      desc:'Speak the user\'s language; use familiar concepts, not jargon.' },
+    { id:3,  name:'User Control and Freedom',
+      desc:'Provide clear "emergency exits" so users can undo unwanted actions.' },
+    { id:4,  name:'Consistency and Standards',
+      desc:'Follow platform conventions; same words/actions should mean the same thing.' },
+    { id:5,  name:'Error Prevention',
+      desc:'Design carefully to prevent problems before they occur.' },
+    { id:6,  name:'Recognition Rather than Recall',
+      desc:'Make options visible; minimize the user\'s memory load.' },
+    { id:7,  name:'Flexibility and Efficiency of Use',
+      desc:'Allow accelerators for experts while keeping the UI accessible to novices.' },
+    { id:8,  name:'Aesthetic and Minimalist Design',
+      desc:'Remove irrelevant information that competes with relevant content.' },
+    { id:9,  name:'Help Users Recognize, Diagnose, and Recover from Errors',
+      desc:'Error messages should be plain language, precise, and constructive.' },
+    { id:10, name:'Help and Documentation',
+      desc:'Provide searchable, task-focused documentation when needed.' }
+  ];
+
+  /* ── The analysis prompt ──────────────────────────────── */
+  const PROMPT = `You are a senior UX researcher conducting a professional heuristic evaluation based on Jakob Nielsen's 10 Usability Heuristics.
+
+Analyze the provided interface carefully and evaluate it against ALL 10 heuristics. Be specific — reference actual UI elements you can observe. If a heuristic is handled well, say so with a high score.
+
+Return ONLY a valid JSON object — no markdown fences, no extra text — in this exact schema:
+
+{
+  "overall_score": <float 1–10, one decimal>,
+  "summary": "<2–3 sentence holistic assessment>",
+  "heuristics": [
+    {
+      "id": 1,
+      "name": "Visibility of System Status",
+      "score": <integer 1–10>,
+      "issues": "<specific issues observed, or 'No significant issues.' if score ≥ 8>",
+      "rationale": "<1–2 sentences explaining the score>",
+      "recommendations": ["<actionable fix 1>", "<actionable fix 2>", "<actionable fix 3>"]
+    },
+    { "id": 2, ... },
+    ...all 10 in order...
+  ]
+}
+
+Scoring scale:
+  1–3 = Critical usability failures
+  4–6 = Moderate issues impacting usability
+  7–8 = Minor issues / mostly good
+  9–10 = Excellent — clear best-practice implementation
+
+If a recommendation is not needed (score ≥ 9), still include at least one note about what was done well.`;
+
+  /* ── Helpers ──────────────────────────────────────────── */
+  function getColorClass(score) {
+    if (score >= 7) return 'green';
+    if (score >= 4) return 'yellow';
+    return 'red';
+  }
+
+  function formatBytes(bytes) {
+    if (bytes < 1024) return bytes + ' B';
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+    return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+  }
+
+  function showError(msg) {
+    const el = document.getElementById('errorMsg');
+    el.textContent = msg;
+    el.classList.add('show');
+  }
+
+  function hideError() {
+    const el = document.getElementById('errorMsg');
+    el.textContent = '';
+    el.classList.remove('show');
+  }
+
+  function setStep(num) {
+    ['ls1','ls2','ls3','ls4'].forEach((id, i) => {
+      const el = document.getElementById(id);
+      el.className = 'lstep';
+      if (i + 1 < num)  el.classList.add('done');
+      if (i + 1 === num) el.classList.add('active');
+    });
+  }
+
+  /* ── Tab switching ────────────────────────────────────── */
+  function switchTab(tab) {
+    activeTab = tab;
+    document.getElementById('tabUpload').classList.toggle('active', tab === 'upload');
+    document.getElementById('tabUrl').classList.toggle('active',   tab === 'url');
+    document.getElementById('panelUpload').style.display = tab === 'upload' ? 'block' : 'none';
+    document.getElementById('panelUrl').style.display   = tab === 'url'    ? 'block' : 'none';
+  }
+
+  /* ── API key visibility ───────────────────────────────── */
+  function toggleKey() {
+    const inp = document.getElementById('apiKey');
+    const btn = document.getElementById('eyeBtn');
+    if (inp.type === 'password') { inp.type = 'text';     btn.textContent = '🙈'; }
+    else                         { inp.type = 'password'; btn.textContent = '👁'; }
+  }
+
+  /* ── File handling ────────────────────────────────────── */
+  const dropZone = document.getElementById('dropZone');
+
+  dropZone.addEventListener('dragover',  e => { e.preventDefault(); dropZone.classList.add('over'); });
+  dropZone.addEventListener('dragleave', ()  => dropZone.classList.remove('over'));
+  dropZone.addEventListener('drop', e => {
+    e.preventDefault();
+    dropZone.classList.remove('over');
+    const f = e.dataTransfer.files[0];
+    if (f) handleFile(f);
+  });
+
+  document.getElementById('fileInput').addEventListener('change', e => {
+    if (e.target.files[0]) handleFile(e.target.files[0]);
+  });
+
+  function handleFile(file) {
+    const ok = ['image/png','image/jpeg','image/jpg','application/pdf'];
+    if (!ok.includes(file.type)) {
+      showError('Unsupported file type. Please upload a PNG, JPG, or PDF.');
+      return;
+    }
+    if (file.size > 20 * 1024 * 1024) {
+      showError('File is too large. Maximum size is 20 MB.');
+      return;
+    }
+    currentFile = file;
+    document.getElementById('chipIcon').textContent = file.type === 'application/pdf' ? '📄' : '🖼️';
+    document.getElementById('chipName').textContent  = file.name;
+    document.getElementById('chipSize').textContent  = formatBytes(file.size);
+    document.getElementById('fileChip').classList.add('show');
+    hideError();
+  }
+
+  function clearFile() {
+    currentFile = null;
+    document.getElementById('fileInput').value = '';
+    document.getElementById('fileChip').classList.remove('show');
+  }
+
+  /* ── File → base64 ────────────────────────────────────── */
+  function fileToBase64(file) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload  = () => resolve(reader.result.split(',')[1]);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  }
+
+  /* ── PDF first page → PNG base64 ─────────────────────── */
+  async function pdfFirstPageToBase64(file) {
+    const buf = await file.arrayBuffer();
+    const pdf = await pdfjsLib.getDocument({ data: buf }).promise;
+    const page = await pdf.getPage(1);
+    const vp = page.getViewport({ scale: 2.0 });
+    const canvas = document.createElement('canvas');
+    canvas.width  = vp.width;
+    canvas.height = vp.height;
+    await page.render({ canvasContext: canvas.getContext('2d'), viewport: vp }).promise;
+    return canvas.toDataURL('image/png').split(',')[1];
+  }
+
+  /* ── OpenAI call — image ──────────────────────────────── */
+  async function callVisionAPI(apiKey, base64, mime) {
+    const res = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey}`
+      },
+      body: JSON.stringify({
+        model: 'gpt-4o',
+        messages: [{
+          role: 'user',
+          content: [
+            { type: 'text', text: PROMPT },
+            { type: 'image_url', image_url: { url: `data:${mime};base64,${base64}`, detail: 'high' } }
+          ]
+        }],
+        max_tokens: 4096,
+        temperature: 0.2
+      })
+    });
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err?.error?.message || `OpenAI API error ${res.status}`);
+    }
+
+    const data = await res.json();
+    return parseAIResponse(data.choices[0].message.content);
+  }
+
+  /* ── OpenAI call — URL / text ─────────────────────────── */
+  async function callTextAPI(apiKey, url) {
+    const textPrompt = `${PROMPT}\n\nThe interface to evaluate is: ${url}\n\nAnalyze using your knowledge of this website. If unfamiliar, provide a framework-based analysis, noting that a screenshot upload would yield more precise results.`;
+
+    const res = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey}`
+      },
+      body: JSON.stringify({
+        model: 'gpt-4o',
+        messages: [{ role: 'user', content: textPrompt }],
+        max_tokens: 4096,
+        temperature: 0.2
+      })
+    });
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err?.error?.message || `OpenAI API error ${res.status}`);
+    }
+
+    const data = await res.json();
+    return parseAIResponse(data.choices[0].message.content);
+  }
+
+  /* ── Parse AI response (strip markdown fences if present) */
+  function parseAIResponse(raw) {
+    const cleaned = raw.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/```\s*$/i, '').trim();
+    return JSON.parse(cleaned);
+  }
+
+  /* ── Main analysis orchestrator ───────────────────────── */
+  async function startAnalysis() {
+    const apiKey = document.getElementById('apiKey').value.trim();
+
+    if (!apiKey) { showError('Please enter your OpenAI API key.'); return; }
+    if (!apiKey.startsWith('sk-')) { showError('API key should start with "sk-". Please check your key.'); return; }
+
+    if (activeTab === 'upload' && !currentFile) {
+      showError('Please upload a file to analyze.'); return;
+    }
+    if (activeTab === 'url') {
+      const u = document.getElementById('urlInput').value.trim();
+      if (!u.startsWith('http')) { showError('Please enter a valid URL (e.g., https://example.com).'); return; }
+    }
+
+    hideError();
+    document.getElementById('analyzeBtn').disabled = true;
+    document.getElementById('inputCard').style.display = 'none';
+    document.getElementById('loading').classList.add('show');
+    document.getElementById('results').classList.remove('show');
+
+    try {
+      let result;
+
+      if (activeTab === 'url') {
+        setStep(1); await tick();
+        const url = document.getElementById('urlInput').value.trim();
+        setStep(2); document.getElementById('loadingMsg').textContent = 'Contacting GPT-4o…';
+        await tick();
+        setStep(3); document.getElementById('loadingMsg').textContent = 'Evaluating heuristics…';
+        result = await callTextAPI(apiKey, url);
+      } else {
+        setStep(1); document.getElementById('loadingMsg').textContent = 'Preparing file…';
+        await tick();
+        let base64, mime;
+        if (currentFile.type === 'application/pdf') {
+          document.getElementById('loadingMsg').textContent = 'Rendering PDF page…';
+          base64 = await pdfFirstPageToBase64(currentFile);
+          mime   = 'image/png';
+        } else {
+          base64 = await fileToBase64(currentFile);
+          mime   = currentFile.type;
+        }
+        setStep(2); document.getElementById('loadingMsg').textContent = 'Contacting GPT-4o Vision…';
+        await tick();
+        setStep(3); document.getElementById('loadingMsg').textContent = 'Evaluating heuristics…';
+        result = await callVisionAPI(apiKey, base64, mime);
+      }
+
+      setStep(4); document.getElementById('loadingMsg').textContent = 'Building report…';
+      await tick();
+
+      renderResults(result);
+
+    } catch (err) {
+      document.getElementById('inputCard').style.display = 'block';
+      document.getElementById('analyzeBtn').disabled = false;
+      showError('Analysis failed: ' + (err.message || 'Unknown error. Check your API key and try again.'));
+      console.error(err);
+    } finally {
+      document.getElementById('loading').classList.remove('show');
+    }
+  }
+
+  /* ── micro-tick so UI updates between steps ───────────── */
+  function tick() { return new Promise(r => setTimeout(r, 120)); }
+
+  /* ── Render results ───────────────────────────────────── */
+  function renderResults(data) {
+    /* Overall */
+    const overall   = parseFloat(data.overall_score);
+    const cls       = getColorClass(overall);
+    const ring      = document.getElementById('overallRing');
+    ring.className  = `score-ring ring-${cls}`;
+    document.getElementById('overallNum').textContent = overall.toFixed(1);
+
+    const titleMap  = {
+      green:  '✅ Good Usability',
+      yellow: '⚠️ Usability Improvements Needed',
+      red:    '❌ Critical Usability Issues'
+    };
+    document.getElementById('overallTitle').textContent   = titleMap[cls];
+    document.getElementById('overallSummary').textContent = data.summary || '—';
+
+    /* Table */
+    const tbody = document.getElementById('htbody');
+    tbody.innerHTML = '';
+
+    (data.heuristics || []).forEach(h => {
+      const sc  = getColorClass(h.score);
+      const pct = Math.round((h.score / 10) * 100);
+      const recs = (h.recommendations || [])
+        .map(r => `<li><span class="arrow">→</span> ${escHtml(r)}</li>`)
+        .join('');
+
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td class="score-cell">
+          <div class="score-pill pill-${sc}">${h.score}</div>
+          <div class="score-bar">
+            <div class="score-bar-fill fill-${sc}" style="width:${pct}%"></div>
+          </div>
+        </td>
+        <td>
+          <div class="h-num">Heuristic #${h.id}</div>
+          <div class="h-name">${escHtml(h.name)}</div>
+        </td>
+        <td>
+          <div class="issues-txt">${escHtml(h.issues || '—')}</div>
+          ${h.rationale ? `<div class="rationale-txt">${escHtml(h.rationale)}</div>` : ''}
+        </td>
+        <td>
+          <ul class="rec-list">${recs}</ul>
+        </td>`;
+      tbody.appendChild(tr);
+    });
+
+    document.getElementById('results').classList.add('show');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  /* ── HTML-escape helper ───────────────────────────────── */
+  function escHtml(str) {
+    return String(str)
+      .replace(/&/g,'&amp;')
+      .replace(/</g,'&lt;')
+      .replace(/>/g,'&gt;')
+      .replace(/"/g,'&quot;');
+  }
+
+  /* ── Export PDF (browser print) ───────────────────────── */
+  function exportReport() {
+    window.print();
+  }
+
+  /* ── Reset ────────────────────────────────────────────── */
+  function resetTool() {
+    clearFile();
+    document.getElementById('urlInput').value = '';
+    document.getElementById('results').classList.remove('show');
+    document.getElementById('inputCard').style.display = 'block';
+    document.getElementById('analyzeBtn').disabled = false;
+    switchTab('upload');
+    ['ls1','ls2','ls3','ls4'].forEach(id => document.getElementById(id).className = 'lstep');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+</script>
+</body>
+</html>
